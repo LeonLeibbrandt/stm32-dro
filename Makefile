@@ -6,7 +6,7 @@ ASRC       = $(wildcard $(SRCDIR)/*.s)
 OBJ        = $(SRC:.c=.o) $(ASRC:.s=.o)
 OBJCOPY    = arm-none-eabi-objcopy
 OBJDUMP    = arm-none-eabi-objdump
-PROGRAMMER = openocd
+PROGRAMMER = $(shell which st-flash)
 PGFLAGS    = -f openocd.cfg -c "program $(PRJ_NAME).elf verify reset" -c shutdown
 DEVICE     = STM32F1
 OPT       ?= -Og
@@ -28,6 +28,14 @@ $(PRJ_NAME).elf: $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $@ $(LDFLAGS)
 	arm-none-eabi-size $(PRJ_NAME).elf
 
+%.bin: %.elf
+	@#printf "  OBJCOPY $(*).bin\n"
+	$(OBJCOPY) -Obinary $(*).elf $(*).bin
+
+%.hex: %.elf
+	@#printf "  OBJCOPY $(*).hex\n"
+	$(OBJCOPY) -Oihex $(*).elf $(*).hex
+
 %.o: %.c $(LIBOPENCM3)
 	$(CC) -MMD -c $(CFLAGS) $< -o $@
 
@@ -42,11 +50,13 @@ clean:
 distclean: clean
 	make -C libopencm3 clean
 
-flash: $(PRJ_NAME).elf
-	$(PROGRAMMER) $(PGFLAGS)
+# Flash 64k Device
+flash:	$(PRJ_NAME).bin
+	$(PROGRAMMER) $(FLASHSIZE) write $(PRJ_NAME).bin 0x8000000
 
-burn: $(PRJ_NAME).elf
-	$(PROGRAMMER) $(PGFLAGS)
+# Flash 128k Device
+bigflash: $(PRJ_NAME).bin
+	$(PROGRAMMER) --flash=128k write $(PRJ_NAME).bin 0x8000000
 
 hex: $(PRJ_NAME).elf
 	$(OBJCOPY) -O ihex $(PRJ_NAME).elf $(PRJ_NAME).hex
