@@ -1,4 +1,4 @@
-PRJ_NAME   = Blink
+PRJ_NAME   = dro
 CC         = arm-none-eabi-gcc
 SRCDIR     = src
 SRC        = $(wildcard $(SRCDIR)/*.c)
@@ -7,11 +7,10 @@ OBJ        = $(SRC:.c=.o) $(ASRC:.s=.o)
 OBJCOPY    = arm-none-eabi-objcopy
 OBJDUMP    = arm-none-eabi-objdump
 PROGRAMMER = $(shell which st-flash)
-PGFLAGS    = -f openocd.cfg -c "program $(PRJ_NAME).elf verify reset" -c shutdown
 DEVICE     = STM32F1
 OPT       ?= -Og
 LIBPATHS   = libopencm3
-CFLAGS     = -fdata-sections -ffunction-sections -g3 -Wall -mcpu=cortex-m3 -mlittle-endian -mthumb -I $(LIBPATHS)/include/ -D$(DEVICE) $(OPT)
+CFLAGS     = -fdata-sections -ffunction-sections -g3 -Wall -mcpu=cortex-m3 -mlittle-endian -mthumb -I $(LIBPATHS)/include/ -I $(SRCDIR) -D$(DEVICE) $(OPT)
 ASFLAGS    =  $(CFLAGS)
 LDSCRIPT   = $(LIBPATHS)/lib/stm32/f1/stm32f103x8.ld
 LDFLAGS    = -T $(LDSCRIPT)  -L$(LIBPATHS)/lib -lopencm3_stm32f1 --static -nostartfiles -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
