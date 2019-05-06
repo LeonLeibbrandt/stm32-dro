@@ -28,17 +28,20 @@
 
 #include <wchar.h>
 #include <wctype.h>
+#include <stdio.h>
+#include <errno.h>
 
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/stm32/i2c.h>
+#include <libopencm3/stm32/usart.h>
 
 #include <ssd1306_i2c.h>
 
 void clock_setup(void) {
-  rcc_clock_setup_in_hse_12mhz_out_72mhz();
+  rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
   /* Enable GPIOs clock. */
   rcc_periph_clock_enable(RCC_GPIOA);
@@ -50,7 +53,10 @@ void clock_setup(void) {
   /* set clock for AFIO*/
   rcc_periph_clock_enable(RCC_AFIO);
 
-  AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
+  /* Set Clock for USART1 */
+  rcc_periph_clock_enable(RCC_USART1);
+
+  // AFIO_MAPR |= AFIO_MAPR_SWJ_CFG_FULL_SWJ_NO_JNTRST;
 }
 
 static void i2c_setup(void) {
@@ -97,27 +103,37 @@ static void i2c_setup(void) {
   i2c_peripheral_enable(I2C2);
 }
 
-volatile int8_t step = 0;
+static void usart_setup(void)
+{
+	/* Setup GPIO pin GPIO_USART1_RE_TX on GPIO port B for transmit. */
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+		      GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
 
-void exti9_5_isr(void) {
-  if (!gpio_get(GPIOA, GPIO8) && gpio_get(GPIOA, GPIO9))
-      step += 1;
-  else
-      step -= 1;
-  exti_reset_request(EXTI8); // we should clear flag manually
+	/* Setup UART parameters. */
+	usart_set_baudrate(USART1, 230400);
+	usart_set_databits(USART1, 8);
+	usart_set_parity(USART1, USART_PARITY_NONE);
+	usart_set_stopbits(USART1, USART_STOPBITS_1);
+	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
+	usart_set_mode(USART1, USART_MODE_TX);
+
+	/* Finally enable the USART. */
+	usart_enable(USART1);
 }
 
-void board_setup(void) {
-  // Debug setting for rotary encoder EC11 on (PA8, PA9) for make simple command
-  gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
-                GPIO_CNF_INPUT_FLOAT,
-                GPIO8 | GPIO9);
+int _write(int file, char *ptr, int len)
+{
+	int i;
+	if (file == 1) {
+		for (i = 0; i < len; i++)
+			usart_send_blocking(USART1, ptr[i]);
+		return i;
+	}
 
-  nvic_enable_irq(NVIC_EXTI9_5_IRQ);
-  exti_enable_request(EXTI8);
-  exti_set_trigger(EXTI8, EXTI_TRIGGER_FALLING);
-  exti_select_source(EXTI8, GPIOA);
+	errno = EIO;
+	return -1;
 }
+
 
 int main(void) {
   /**
@@ -130,32 +146,29 @@ int main(void) {
 
   clock_setup();
   i2c_setup();
-  board_setup();
+  usart_setup();
+
 
   ssd1306_init(I2C2, DEFAULT_7bit_OLED_SLAVE_ADDRESS, 128, 32);
 
-  step = 1;
   int16_t y = 0;
-
+  int16_t step = 0;
   wchar_t str[20];
+
+  printf("Starting...\n");
   
   while (1) {
-      if (step!=0) {
-        for (int i =0; i<8; i++) {
-          y += step;
-          ssd1306_clear();
-          ssd1306_drawWCharStr(0, y, white, wrapDisplay,L"Testing");
-	  swprintf(str, sizeof(str)/sizeof(wchar_t), L"%lf", 1234.5432);
-	  ssd1306_drawWCharStr(0, y+10, white, wrapDisplay, str);
-          ssd1306_refresh();
-          for (uint32_t loop = 0; loop < 1000000; ++loop) {
-            __asm__("nop");
-        }
+    printf("Hello World %d\n", step);
+    for (int i =0; i<8; i++) {
+      ++step;
+      ssd1306_clear();
+      ssd1306_drawWCharStr(0, y, white, wrapDisplay,L"Testing");
+      swprintf(str, sizeof(str)/sizeof(wchar_t), L"%lf", 1234.5432);
+      ssd1306_drawWCharStr(0, y+10, white, wrapDisplay, str);
+      ssd1306_refresh();
+      for (uint32_t loop = 0; loop < 1000000; ++loop) {
+	__asm__("nop");
       }
-      if (step<0)
-        step += 1;
-      else
-        step -= 1;
     }
   }
 
