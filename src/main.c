@@ -151,9 +151,8 @@ int main(void) {
 
   ssd1306_init(I2C2, DEFAULT_7bit_OLED_SLAVE_ADDRESS);
 
-  uint16_t y = 0;
   int16_t step = 0;
-  char str[20];
+  char str[80];
 
   printf("Starting...\n");
   
@@ -162,11 +161,12 @@ int main(void) {
     for (int i =0; i<8; i++) {
       ++step;
       ssd1306_clear();
-      ssd1306_gotoXY(0,y);
-      ssd1306_putS("Testing", &Font_16x26, white);
-      sprintf(str, "%f", 1234.5432);
-      ssd1306_gotoXY(0, y+10);
-      ssd1306_putS(str, &Font_16x26, white);
+      ssd1306_gotoXY(0, 17);
+      ssd1306_putS("123.45", &Font_7x10, white);
+      sprintf(str, "%.2f", (float)step*2.34);
+      printf("String %s\n", str);
+      ssd1306_gotoXY(0, 0);
+      ssd1306_putS(str, &Font_7x10, white);
       ssd1306_refresh();
       for (uint32_t loop = 0; loop < 1000000; ++loop) {
 	__asm__("nop");
