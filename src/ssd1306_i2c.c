@@ -33,22 +33,29 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <pentacom_font.h>
-#include "pentacom_font.h"
+#include <fonts.h>
+
 
 
 uint32_t I2C_OLED = I2C2;
 uint8_t OLED_ADDRESS = DEFAULT_7bit_OLED_SLAVE_ADDRESS;
-uint8_t WIDTH = 128;
-uint8_t HEIGHT = 32;
-uint16_t screenBufferLength = DEFAULTBUFFERLENGTH;
 MODE AddressingMode = Page;
 
+/* Private SSD1306 structure */
+typedef struct {
+	uint16_t CurrentX;
+	uint16_t CurrentY;
+	uint8_t Inverted;
+	uint8_t Initialized;
+} SSD1306_t;
+
+/* Private variable */
+static SSD1306_t SSD1306;
 
 // just noise to check a screen
 // todo make logo or something else
 
-uint8_t screenRAM[DEFAULTBUFFERLENGTH] = {
+static uint8_t screenRAM[SSD1306_WIDTH * SSD1306_HEIGHT / 8] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x1e,0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x00
     ,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xe0,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0xc0
     ,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x00,0x00,0xff,0xff,0xff,0xff,0xff,0xc0,0x30
@@ -244,17 +251,14 @@ void ssd1306_send_data(uint8_t spec, uint8_t data) {
   * @param width -- width of the display
   * @param height -- height of the display
   */
-void ssd1306_init(uint32_t i2c, uint8_t address, uint8_t width, uint8_t height) {
+void ssd1306_init(uint32_t i2c, uint8_t address) {
   I2C_OLED = i2c;
   OLED_ADDRESS = address;
-  WIDTH = width;
-  HEIGHT = height;
-  screenBufferLength = (uint16_t) (HEIGHT / 8 * WIDTH);
 
   // now we can and should send a lot commands
   ssd1306_switchOLEDOn(false); // 0xae
   ssd1306_setOscillatorFrequency(0x80);  // D5h 0x80
-  ssd1306_setMultiplexRatio(HEIGHT-1);
+  ssd1306_setMultiplexRatio(SSD1306_HEIGHT-1);
   ssd1306_setInverse(false); // normal display
   ssd1306_chargePump(true);
   ssd1306_setContrast(0x3F);
@@ -264,6 +268,8 @@ void ssd1306_init(uint32_t i2c, uint8_t address, uint8_t width, uint8_t height) 
   ssd1306_setDisplayOn(true);
   ssd1306_switchOLEDOn(true);
 
+  SSD1306.CurrentX = 0;
+  SSD1306.CurrentY = 0;
   ssd1306_refresh();
 }
 
@@ -532,15 +538,15 @@ void ssd1306_setColumn(uint8_t column) {
 
 void ssd1306_clear(void) {
   /*ssd1306_setMemoryAddressingMode(Horizontal);
-  ssd1306_setColumnAddressScope(0,WIDTH-1);
+  ssd1306_setColumnAddressScope(0,SSD1306_WIDTH-1);
   ssd1306_setPageAddressScope(0,HEIGHT/8-1);
 
   for (uint16_t i=0; i < screenBufferLength; i++) {
     ssd1306_send_data(DATAONLY, 0x00);
   }*/
-  for (uint16_t i=0; i<screenBufferLength; i++)
-    screenRAM[i] = 0;
-    //memset(screenRAM, 0x00, screenBufferLength); //TODO check if "memset" is safe in our env
+  // for (uint16_t i=0; i<screenBufferLength; i++)
+  //   screenRAM[i] = 0;
+  memset(screenRAM, 0x00, sizeof(screenRAM)); //TODO check if "memset" is safe in our env
 }
 
 /**
@@ -548,58 +554,89 @@ void ssd1306_clear(void) {
  */
 void ssd1306_refresh(void) {
   ssd1306_setMemoryAddressingMode(Horizontal);
-  ssd1306_setColumnAddressScope(0,WIDTH-1);
-  ssd1306_setPageAddressScope(0,HEIGHT/8-1);
+  ssd1306_setColumnAddressScope(0,SSD1306_WIDTH-1);
+  ssd1306_setPageAddressScope(0,SSD1306_HEIGHT/8-1);
   ssd1306_start();
   ssd1306_send(DATAONLY);
-  for (uint16_t i=0; i < screenBufferLength; i++) {
+  for (uint16_t i=0; i < sizeof(screenRAM); i++) {
     i2c_send_data(I2C_OLED, screenRAM[i]); //todo make it with DMA later
     while (_IF_TxE(I2C_OLED));
   }
   ssd1306_stop();
 }
 
-void ssd1306_drawVPattern(uint8_t x, int8_t y, uint8_t pattern) {
-  if ( y > HEIGHT || y < (-7) || x > WIDTH )
-     return;
-  uint8_t yy = abs(y) % 8;
-  if ( y<0 )
-    screenRAM[ y/8*WIDTH + x ] |= pattern >> yy;
-  else if ( y>23 )
-    screenRAM[ y/8*WIDTH + x] |= pattern << yy;
-  else {
-    if ( yy!=0 ) {
-      screenRAM[y/8*WIDTH + x] |= pattern << yy;
-      screenRAM[(y/8+1)*WIDTH + x] |= pattern >> (8-yy);
-    } else
-      screenRAM[y/8*WIDTH + x] |= pattern;
-  }
+void ssd1306_drawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color) {
+	if (
+		x >= SSD1306_WIDTH ||
+		y >= SSD1306_HEIGHT
+	) {
+		/* Error */
+		return;
+	}
+	
+	/* Check if pixels are inverted */
+	if (SSD1306.Inverted) {
+	  color = (SSD1306_COLOR_t)!color;
+	}
+	
+	/* Set color */
+	if (color == white) {
+		screenRAM[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8);
+	} else {
+		screenRAM[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));
+	}
 }
 
-void ssd1306_drawWCharStr(uint8_t x, int8_t y, Color color, WrapType wrType, wchar_t *str) {
-  wchar_t symbol = 0x00;
-  uint16_t curPos = 0;
-  uint8_t xx = x; int8_t yy = y;
-  do {
-    symbol = str[curPos];
-    const FontChar_t *charCur = getCharacter(symbol);
-    if ((charCur->size+xx) >= (WIDTH-1) || (symbol == L'\n'))
-      switch (wrType) {
-        case nowrap:
-          return;
-        case wrapDisplay:
-          xx = 0;
-          yy += 8;
-          break;
-        case wrapCoord:
-          xx = x;
-          yy += 8;
-      }
-    for (uint8_t i=0; i<charCur->size; i++){
-      uint8_t p = (color==white) ? charCur->l[i]: ~charCur->l[i];
-      ssd1306_drawVPattern(xx,yy, p);
-      xx += 1;
-    }
-    curPos += 1;
-  } while (symbol != 0x00);
+void ssd1306_gotoXY(uint16_t x, uint16_t y) {
+	/* Set write pointers */
+	SSD1306.CurrentX = x;
+	SSD1306.CurrentY = y;
+}
+
+char ssd1306_putC(char ch, FontDef_t* Font, SSD1306_COLOR_t color) {
+	uint32_t i, b, j;
+	
+	/* Check available space in LCD */
+	if (
+		SSD1306_WIDTH <= (SSD1306.CurrentX + Font->FontWidth) ||
+		SSD1306_HEIGHT <= (SSD1306.CurrentY + Font->FontHeight)
+	) {
+		/* Error */
+		return 0;
+	}
+	
+	/* Go through font */
+	for (i = 0; i < Font->FontHeight; i++) {
+		b = Font->data[(ch - 32) * Font->FontHeight + i];
+		for (j = 0; j < Font->FontWidth; j++) {
+			if ((b << j) & 0x8000) {
+				ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR_t) color);
+			} else {
+				ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR_t)!color);
+			}
+		}
+	}
+	
+	/* Increase pointer */
+	SSD1306.CurrentX += Font->FontWidth;
+	
+	/* Return character written */
+	return ch;
+}
+
+char ssd1306_putS(char* str, FontDef_t* Font, SSD1306_COLOR_t color) {
+	/* Write characters */
+	while (*str) {
+		/* Write character by character */
+		if (ssd1306_putC(*str, Font, color) != *str) {
+			/* Return error */
+			return *str;
+		}
+		
+		/* Increase string pointer */
+		str++;
+	}
+	
+	/* Everything OK, zero should be returned */
+	return *str;
 }

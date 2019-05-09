@@ -30,6 +30,7 @@
 #define SSD1306_LIBRARY_SSD1306_I2C_H
 
 #include <libopencm3/stm32/i2c.h>
+#include <fonts.h>
 
 #define _swap(a, b) { uint8_t t = a; a = b; b = t; }
 #define _bitSet(x) (1 << (x))
@@ -59,9 +60,10 @@
 
 // Addressing mode
 
-#ifndef DEFAULTBUFFERLENGTH
-#define DEFAULTBUFFERLENGTH 1024
-#endif
+#define SSD1306_WIDTH  128
+#define SSD1306_HEIGHT  64
+#define SSD1306_BUFFER_LENGTH  (SSD1306_WIDTH*SSD1306_HEIGHT/8)
+
 
 typedef enum SSD1306_AddressingMode {
   Horizontal  = 0b00,
@@ -72,12 +74,11 @@ typedef enum SSD1306_AddressingMode {
 
 extern MODE AddressingMode;
 
-typedef enum SSD1306_COLOR { white = 0, black = 1} Color;
+typedef enum SSD1306_COLOR { white = 0, black = 1} SSD1306_COLOR_t;
 typedef enum SSD1306_WRAP {nowrap, wrapDisplay, wrapCoord} WrapType;
 
-extern uint8_t screenRAM[];
 
-void ssd1306_init(uint32_t i2c, uint8_t address, uint8_t width, uint8_t height);
+void ssd1306_init(uint32_t i2c, uint8_t address);
 
 // tools
 
@@ -110,10 +111,11 @@ void ssd1306_setColumn(uint8_t);
 // paint commands
 void ssd1306_clear(void);
 void ssd1306_refresh(void);
-void ssd1306_drawPixel(uint8_t x, uint8_t y, Color c, bool directNoRAM);
-void ssd1306_drawVPattern(uint8_t x, int8_t y, uint8_t pattern);
-void ssd1306_drawWCharStr(uint8_t x, int8_t y, Color color, WrapType wrType, wchar_t *str);
 
+void ssd1306_drawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color);
+void ssd1306_gotoXY(uint16_t x, uint16_t y);
+char ssd1306_putC(char ch, FontDef_t* Font, SSD1306_COLOR_t color);
+char ssd1306_putS(char* str, FontDef_t* Font, SSD1306_COLOR_t color);
 
 
 #endif //SSD1306_LIBRARY_SSD1306_I2C_H

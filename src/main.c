@@ -149,11 +149,11 @@ int main(void) {
   usart_setup();
 
 
-  ssd1306_init(I2C2, DEFAULT_7bit_OLED_SLAVE_ADDRESS, 128, 32);
+  ssd1306_init(I2C2, DEFAULT_7bit_OLED_SLAVE_ADDRESS);
 
-  int16_t y = 0;
+  uint16_t y = 0;
   int16_t step = 0;
-  wchar_t str[20];
+  char str[20];
 
   printf("Starting...\n");
   
@@ -162,9 +162,11 @@ int main(void) {
     for (int i =0; i<8; i++) {
       ++step;
       ssd1306_clear();
-      ssd1306_drawWCharStr(0, y, white, wrapDisplay,L"Testing");
-      swprintf(str, sizeof(str)/sizeof(wchar_t), L"%lf", 1234.5432);
-      ssd1306_drawWCharStr(0, y+10, white, wrapDisplay, str);
+      ssd1306_gotoXY(0,y);
+      ssd1306_putS("Testing", &Font_16x26, white);
+      sprintf(str, "%f", 1234.5432);
+      ssd1306_gotoXY(0, y+10);
+      ssd1306_putS(str, &Font_16x26, white);
       ssd1306_refresh();
       for (uint32_t loop = 0; loop < 1000000; ++loop) {
 	__asm__("nop");
