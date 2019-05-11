@@ -227,6 +227,14 @@ void ssd1306_send_data(uint8_t spec, uint8_t data) {
   ssd1306_stop();
 }
 
+
+void ssd1306_send_command(uint8_t cmd) {
+  ssd1306_start();
+  ssd1306_send(0x00);
+  ssd1306_send(cmd);
+  ssd1306_stop();
+}
+
 /**
   *  According Reset Circuit
   *  When RES# input is LOW, the chip is initialized with the following status:
@@ -254,7 +262,9 @@ void ssd1306_send_data(uint8_t spec, uint8_t data) {
 void ssd1306_init(uint32_t i2c, uint8_t address) {
   I2C_OLED = i2c;
   OLED_ADDRESS = address;
-
+  
+ 
+  /*
   // now we can and should send a lot commands
   ssd1306_switchOLEDOn(false); // 0xae
   ssd1306_setOscillatorFrequency(0x80);  // D5h 0x80
@@ -268,9 +278,39 @@ void ssd1306_init(uint32_t i2c, uint8_t address) {
   ssd1306_setDisplayOn(true);
   ssd1306_switchOLEDOn(true);
   
-  ssd1306_send_data(COMMAND, 0xA1);
-  ssd1306_send_data(COMMAND, 0x40);
+  // ssd1306_send_data(COMMAND, 0xD0);
+  // ssd1306_send_data(COMMAND, 0xC8);
 
+  */  
+  /* Init LCD */
+  ssd1306_send_command(0xAE); //display off
+  ssd1306_send_command(0x20); //Set Memory Addressing Mode   
+  ssd1306_send_command(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
+  ssd1306_send_command(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
+  ssd1306_send_command(0xC8); //Set COM Output Scan Direction
+  ssd1306_send_command(0x00); //---set low column address
+  ssd1306_send_command(0x10); //---set high column address
+  ssd1306_send_command(0x40); //--set start line address
+  ssd1306_send_command(0x81); //--set contrast control register
+  ssd1306_send_command(0xFF);
+  ssd1306_send_command(0xA1); //--set segment re-map 0 to 127
+  ssd1306_send_command(0xA6); //--set normal display
+  ssd1306_send_command(0xA8); //--set multiplex ratio(1 to 64)
+  ssd1306_send_command(0x3F); //
+  ssd1306_send_command(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
+  ssd1306_send_command(0xD3); //-set display offset
+  ssd1306_send_command(0x00); //-not offset
+  ssd1306_send_command(0xD5); //--set display clock divide ratio/oscillator frequency
+  ssd1306_send_command(0xF0); //--set divide ratio
+  ssd1306_send_command(0xD9); //--set pre-charge period
+  ssd1306_send_command(0x22); //
+  ssd1306_send_command(0xDA); //--set com pins hardware configuration
+  ssd1306_send_command(0x12);
+  ssd1306_send_command(0xDB); //--set vcomh
+  ssd1306_send_command(0x20); //0x20,0.77xVcc
+  ssd1306_send_command(0x8D); //--set DC-DC enable
+  ssd1306_send_command(0x14); //
+  ssd1306_send_command(0xAF); //--turn on SSD1306 panel
   
   SSD1306.CurrentX = 0;
   SSD1306.CurrentY = 0;
@@ -548,9 +588,9 @@ void ssd1306_clear(void) {
   for (uint16_t i=0; i < screenBufferLength; i++) {
     ssd1306_send_data(DATAONLY, 0x00);
   }*/
-  // for (uint16_t i=0; i<screenBufferLength; i++)
-  //   screenRAM[i] = 0;
-  memset(screenRAM, 0x00, sizeof(screenRAM)); //TODO check if "memset" is safe in our env
+  for (uint16_t i=0; i<sizeof(screenRAM); i++)
+    screenRAM[i] = 0;
+  // memset(screenRAM, 0x00, sizeof(screenRAM)); //TODO check if "memset" is safe in our env
 }
 
 /**
@@ -597,27 +637,19 @@ void ssd1306_gotoXY(uint16_t x, uint16_t y) {
   SSD1306.CurrentY = y;
 }
 
-char ssd1306_putC(char ch, FontDef_t* Font, SSD1306_COLOR_t color) {
+char ssd1306_putC(char ch, FontDef_t* Font, uint8_t color) {
   uint32_t i, b, j;
   
-  /* Check available space in LCD */
-  if (
-      SSD1306_WIDTH <= (SSD1306.CurrentX + Font->FontWidth) ||
-      SSD1306_HEIGHT <= (SSD1306.CurrentY + Font->FontHeight)
-      ) {
-    /* Error */
-    return 0;
-  }
-  
+  b = 0;
   /* Go through font */
   for (i = 0; i < Font->FontHeight; i++) {
-    b = Font->data[(ch - 32) * Font->FontHeight + i];
     for (j = 0; j < Font->FontWidth; j++) {
-      if ((b << j) & 0x8000) {
-	ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR_t) color);
+      if ((Font->data[(ch-32)*Font->CharBytes + b/8] >> b%8) & 1) {
+	ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (uint8_t) color);
       } else {
-	ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (SSD1306_COLOR_t)!color);
+	ssd1306_drawPixel(SSD1306.CurrentX + j, (SSD1306.CurrentY + i), (uint8_t)!color);
       }
+      b++;
     }
   }
   

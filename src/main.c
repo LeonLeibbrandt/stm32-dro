@@ -97,7 +97,7 @@ static void i2c_setup(void) {
    * This is our slave address - needed only if we want to receive from
    * other masters.
    */
-  i2c_set_own_7bit_slave_address(I2C2, 0x32);
+  // i2c_set_own_7bit_slave_address(I2C2, 0x32);
 
   /* If everything is configured -> enable the peripheral. */
   i2c_peripheral_enable(I2C2);
@@ -140,9 +140,7 @@ int main(void) {
    * Brief delay to give the debugger a chance to stop the core before we
    * muck around with the chip's configuration.
    */
-  for (uint32_t loop = 0; loop < 1000000; ++loop) {
-    __asm__("nop");
-  }
+
 
   clock_setup();
   i2c_setup();
@@ -150,6 +148,10 @@ int main(void) {
 
 
   ssd1306_init(I2C2, DEFAULT_7bit_OLED_SLAVE_ADDRESS);
+
+  for (uint32_t loop = 0; loop < 10000000; ++loop) {
+    __asm__("nop");
+  }
 
   int16_t step = 0;
   char str[80];
@@ -161,12 +163,23 @@ int main(void) {
     for (int i =0; i<8; i++) {
       ++step;
       ssd1306_clear();
-      ssd1306_gotoXY(0, 17);
-      ssd1306_putS("123.45", &Font_7x10, white);
-      sprintf(str, "%.2f", (float)step*2.34);
-      printf("String %s\n", str);
       ssd1306_gotoXY(0, 0);
-      ssd1306_putS(str, &Font_7x10, white);
+      sprintf(str, "X   %06.2f", (float)step*2.34);
+      ssd1306_putS(str, &Font_12x24, white);
+      ssd1306_gotoXY(0, 22);
+      sprintf(str, "Y   %06.2f", (float)step*1.50);
+      ssd1306_putS(str, &Font_12x24, white);
+      ssd1306_gotoXY(0, 44);
+      sprintf(str, "Z   %06.2f", (float)step*6.21);
+      ssd1306_putS(str, &Font_12x24, white);
+      /*
+      ssd1306_gotoXY(0, 20);
+      ssd1306_putS("123456.45", &Font_9x18, white);
+      sprintf(str, "%3.2f", (float)step*2.34);
+      printf("String %s\n", str);
+      ssd1306_gotoXY(0, 40);
+      ssd1306_putS(str, &Font_9x18, white);
+      */
       ssd1306_refresh();
       for (uint32_t loop = 0; loop < 1000000; ++loop) {
 	__asm__("nop");

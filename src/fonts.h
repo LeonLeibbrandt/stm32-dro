@@ -33,16 +33,11 @@ extern C {
  *
  * \par Supported fonts
  * 
- * Currently, these fonts are supported:
- *  - 7 x 10 pixels
- *  - 11 x 18 pixels
- *  - 16 x 26 pixels
+ *  - 12 x 24 pixels
  */
-#include <libopencm3/stm32/i2c.h>
 
-  
-// #include "stm32f1xx_hal.h"
 #include "string.h"
+#include <inttypes.h>
 
 /**
  * @defgroup LIB_Typedefs
@@ -56,7 +51,8 @@ extern C {
 typedef struct {
 	uint8_t FontWidth;    /*!< Font width in pixels */
 	uint8_t FontHeight;   /*!< Font height in pixels */
-	const uint16_t *data; /*!< Pointer to data font data array */
+	uint8_t CharBytes;    /*!< Count of bytes for one character */
+	const uint8_t *data; /*!< Pointer to data font data array */
 } FontDef_t;
 
 /** 
@@ -77,24 +73,10 @@ typedef struct {
  * @{
  */
 
-/**
- * @brief  7 x 10 pixels font size structure 
+ /*
+ * @brief  12 x 24 pixels font size structure 
  */
-extern FontDef_t Font_7x10;
-/**
- * @brief  7 x 14 pixels font size structure 
- */
-extern FontDef_t Font_7x14;
-
-/**
- * @brief  11 x 18 pixels font size structure 
- */
-extern FontDef_t Font_11x18;
-
-/**
- * @brief  16 x 26 pixels font size structure 
- */
-extern FontDef_t Font_16x26;
+extern FontDef_t Font_12x24;
 
 /**
  * @}
