@@ -26,16 +26,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SSD1306_LIBRARY_SSD1306_I2C_H
-#define SSD1306_LIBRARY_SSD1306_I2C_H
+#ifndef SSD1306_SSD1306_I2C_H
+#define SSD1306_SSD1306_I2C_H
 
 #include <libopencm3/stm32/i2c.h>
 #include <fonts.h>
-
-#define _swap(a, b) { uint8_t t = a; a = b; b = t; }
-#define _bitSet(x) (1 << (x))
-#define _bitClear(x) (~(1 << x))
-#define _bitCheck(number, x) (number >> x) & 1
 
 // address of device is // 011110+SA0+RW - 0x3C or 0x3D
 
@@ -43,79 +38,24 @@
 #define I2C_COMMAND 0x00
 #define I2C_DATA 0x40
 
-// Fundamental Command Table
-#define SSD1306_SET_CONTROL     0x81  // Double byte command to select 1 out of 256 contrast steps. Contrast increases as the value increases.
-#define SSD1306_RESET           0x7F
-#define SSD1306_DISPLAY_ON_RAM  0xA4  // Resume to RAM content display (RESET)
-#define SSD1306_DISPLAY_NO_RAM  0xA5  // Output ignores RAM content
-#define SSD1306_SET_NORMAL      0xA6  // Normal display (RESET)
-#define SSD1306_SET_INVERSE     0xA7  // Inverse display
-#define SSD1306_SET_DISPLAY_OFF 0xAE  // Display OFF (sleep mode)
-#define SSD1306_SET_DISPLAY_ON  0xAF  // Display ON in normal mode
-
-#define _IF_SB(i2c) ((I2C_SR1(i2c) & I2C_SR1_SB) == 0)
-#define _IF_BTF(i2c) ((I2C_SR1(i2c) & I2C_SR1_BTF) == 0)
-#define _IF_ADDR(i2c) ((I2C_SR1(i2c) & I2C_SR1_ADDR) == 0)
-#define _IF_TxE(i2c) (I2C_SR1(i2c) & I2C_SR1_TxE) == 0
-
-// Addressing mode
-
 #define SSD1306_WIDTH  128
 #define SSD1306_HEIGHT  64
 #define SSD1306_BUFFER_LENGTH  (SSD1306_WIDTH*SSD1306_HEIGHT/8)
 
 
-typedef enum SSD1306_AddressingMode {
-  Horizontal  = 0b00,
-  Vertical    = 0b01,
-  Page        = 0b10, // RESET
-  INVALID     = 0b11  // You MUST NOT USE IT
-} MODE;
-
-extern MODE AddressingMode;
-
-typedef enum SSD1306_COLOR { white = 0, black = 1} SSD1306_COLOR_t;
-typedef enum SSD1306_WRAP {nowrap, wrapDisplay, wrapCoord} WrapType;
-
+typedef enum SSD1306_COLOR {
+  white = 0,
+  black = 1
+} SSD1306_COLOR_t;
 
 void ssd1306_init(uint32_t i2c, uint8_t address);
 
-// tools
-
-#define DATAONLY (uint8_t)0b01000000
-#define COMMAND  (uint8_t)0b00000000
-
-void ssd1306_send(uint8_t spec);
-void ssd1306_send_data(uint8_t spec, uint8_t data);
-
-// hardware commands
-void ssd1306_setMemoryAddressingMode(MODE mode);
-void ssd1306_setColumnAddressScope(uint8_t lower, uint8_t upper);
-void ssd1306_setPageAddressScope(uint8_t lower, uint8_t upper);
-void ssd1306_setPageStartAddressForPageAddressingMode(uint8_t pageNum);
-void ssd1306_setDisplayStartLine(uint8_t startLine);
-void ssd1306_setContrast(uint8_t value);
-void ssd1306_setPrecharge(uint8_t value);
-void ssd1306_setDisplayOn(bool resume); // switch ON/OFF MCU of display
-void ssd1306_setInverse(bool inverse);
-void ssd1306_chargePump(bool chargePump);
-void ssd1306_switchOLEDOn(bool goOn); //switch ON/OFF power switch of the OLED panel
-void ssd1306_setDisplayOffset(uint8_t verticalShift);
-void ssd1306_adjustVcomDeselectLevel(uint8_t value);
-void ssd1306_setOscillatorFrequency(uint8_t value); // you SHOULD use default value (0x80)
-void ssd1306_setMultiplexRatio(uint8_t ratio);
-void ssd1306_setCOMPinsHardwareConfiguration(uint8_t);
-void ssd1306_setPage(uint8_t);
-void ssd1306_setColumn(uint8_t);
-
-// paint commands
+/// paint commands
 void ssd1306_clear(void);
 void ssd1306_refresh(void);
 
-void ssd1306_drawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color);
-void ssd1306_gotoXY(uint16_t x, uint16_t y);
-char ssd1306_putC(char ch, FontDef_t* Font, SSD1306_COLOR_t color);
-char ssd1306_putS(char* str, FontDef_t* Font, SSD1306_COLOR_t color);
+void ssd1306_gotoxy(uint16_t x, uint16_t y);
+char ssd1306_drawstring(char* str, FontDef_t* Font, SSD1306_COLOR_t color);
 
 
-#endif //SSD1306_LIBRARY_SSD1306_I2C_H
+#endif

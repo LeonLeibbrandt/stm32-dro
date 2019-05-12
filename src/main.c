@@ -163,15 +163,15 @@ int main(void) {
     for (int i =0; i<8; i++) {
       ++step;
       ssd1306_clear();
-      ssd1306_gotoXY(0, 0);
+      ssd1306_gotoxy(0, 0);
       sprintf(str, "X   %06.2f", (float)step*2.34);
-      ssd1306_putS(str, &Font_12x24, white);
-      ssd1306_gotoXY(0, 22);
+      ssd1306_drawstring(str, &Font_12x24, white);
+      ssd1306_gotoxy(0, 22);
       sprintf(str, "Y   %06.2f", (float)step*1.50);
-      ssd1306_putS(str, &Font_12x24, white);
-      ssd1306_gotoXY(0, 44);
+      ssd1306_drawstring(str, &Font_12x24, white);
+      ssd1306_gotoxy(0, 44);
       sprintf(str, "Z   %06.2f", (float)step*6.21);
-      ssd1306_putS(str, &Font_12x24, white);
+      ssd1306_drawstring(str, &Font_12x24, white);
       /*
       ssd1306_gotoXY(0, 20);
       ssd1306_putS("123456.45", &Font_9x18, white);
